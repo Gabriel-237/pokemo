@@ -25,7 +25,7 @@ const TYPE_NAMES = {
 };
 
 const STAT_NAMES = {
-  hp: "HP",
+  hp: "PS",
   attack: "Ataque",
   defense: "Defesa",
   "special-attack": "Atq. Esp.",
@@ -115,6 +115,27 @@ const TYPE_MOVES = {
   fairy: ["Brilho Mágico", "Explosão Lunar", "Vento Encantado"],
 };
 
+const TYPE_FX = {
+  normal:   { icon: "💥", color: "#e5e7eb", glow: "#9ca3af" },
+  fire:     { icon: "🔥", color: "#f97316", glow: "#ef4444" },
+  water:    { icon: "💧", color: "#38bdf8", glow: "#2563eb" },
+  electric: { icon: "⚡", color: "#fde047", glow: "#eab308" },
+  grass:    { icon: "🍃", color: "#4ade80", glow: "#16a34a" },
+  ice:      { icon: "❄️", color: "#67e8f9", glow: "#06b6d4" },
+  fighting: { icon: "👊", color: "#f87171", glow: "#dc2626" },
+  poison:   { icon: "☠️", color: "#c084fc", glow: "#9333ea" },
+  ground:   { icon: "🪨", color: "#fbbf24", glow: "#b45309" },
+  flying:   { icon: "🌪️", color: "#a5b4fc", glow: "#6366f1" },
+  psychic:  { icon: "🔮", color: "#f472b6", glow: "#db2777" },
+  bug:      { icon: "🕸️", color: "#a3e635", glow: "#65a30d" },
+  rock:     { icon: "⛰️", color: "#d6d3d1", glow: "#78716c" },
+  ghost:    { icon: "👻", color: "#818cf8", glow: "#4338ca" },
+  dragon:   { icon: "🐉", color: "#60a5fa", glow: "#1d4ed8" },
+  dark:     { icon: "🌑", color: "#6b7280", glow: "#111827" },
+  steel:    { icon: "⚙️", color: "#cbd5e1", glow: "#475569" },
+  fairy:    { icon: "✨", color: "#f9a8d4", glow: "#ec4899" },
+};
+
 const elements = {
   form: document.querySelector("#search-form"),
   input: document.querySelector("#pokemon-input"),
@@ -155,6 +176,7 @@ let comparison = [];
 let catalogRequestId = 0;
 let detailRequestId = 0;
 let battleTimer = null;
+let arenaTab = "field";
 
 function escapeHTML(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -297,7 +319,7 @@ async function getPokemon(identifier) {
 
 async function loadCatalog() {
   searchMode = false;
-  elements.catalogCaption.textContent = "Selecione dois Pokémon e clique em Duelar para iniciar uma batalha!";
+  elements.catalogCaption.textContent = "Selecione uma carta para inspecionar ou enviar para a Arena.";
   elements.pagination.hidden = false;
   const offset = currentPage * PAGE_SIZE;
 
@@ -542,7 +564,9 @@ function renderDetail(pokemon, description) {
   const image = pokemonImage(pokemon, isShinyMode);
   const typeNames = pokemon.types.map(({ type }) => type.name);
   const firstType = typeNames[0] || "normal";
-  const abilities = pokemon.abilities.map(({ ability }) => ability.name.replaceAll("-", " "));
+  const abilities = pokemon.abilities.map(({ ability, is_hidden }) =>
+    `${ability.name.replaceAll("-", " ")}${is_hidden ? " ★" : ""}`
+  );
   const favorite = favorites.some((item) => item.id === pokemon.id);
   const compared = comparison.some((item) => item.id === pokemon.id);
 
@@ -588,19 +612,21 @@ function renderDetail(pokemon, description) {
     <div class="detail-facts">
       <div class="fact"><span class="fact-label">Altura</span><span class="fact-value">${height} m</span></div>
       <div class="fact"><span class="fact-label">Peso</span><span class="fact-value">${weight} kg</span></div>
-      <div class="fact"><span class="fact-label">Habilidade</span><span class="fact-value">${escapeHTML(abilities[0] || "—")}</span></div>
-      <div class="fact"><span class="fact-label">Poder Total</span><span class="fact-value">${total} pts</span></div>
+      <div class="fact" style="grid-column:1 / -1;"><span class="fact-label">Habilidades (★ Oculta)</span><span class="fact-value">${escapeHTML(abilities.join(", ") || "—")}</span></div>
     </div>
 
-    <h4 class="stats-title">Atributos de Combate</h4>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.65rem;">
+      <h4 class="stats-title" style="margin-bottom:0;">Atributos Base</h4>
+      <span style="font-family:var(--font-display);font-size:0.78rem;font-weight:700;color:var(--text-muted);">BST ${total}</span>
+    </div>
     ${stats}
 
     <div class="detail-actions">
       <button class="detail-action${favorite ? " is-active" : ""}" type="button" data-action="favorite" data-pokemon-id="${pokemon.id}">
-        ${favorite ? "★ Na Equipe" : "☆ Capturar"}
+        ${favorite ? "★ Favoritado" : "☆ Favoritar"}
       </button>
       <button class="detail-action${compared ? " is-active" : ""}" type="button" data-action="compare" data-pokemon-id="${pokemon.id}">
-        ${compared ? "✓ Na Arena" : "⚔ Duelar"}
+        ${compared ? "✓ Na Arena" : "⚔ Enviar p/ Arena"}
       </button>
     </div>
 
@@ -618,14 +644,14 @@ function renderDetail(pokemon, description) {
 function toggleFavorite(pokemon) {
   if (favorites.some((item) => item.id === pokemon.id)) {
     favorites = favorites.filter((item) => item.id !== pokemon.id);
-    setSearchStatus(`${pokemon.name.toUpperCase()} foi liberado da equipe.`);
+    setSearchStatus(`${pokemon.name.toUpperCase()} foi removido da equipe.`);
   } else {
     if (favorites.length >= MAX_TEAM_SIZE) {
       setSearchStatus(`Sua equipe já está cheia (${MAX_TEAM_SIZE}/${MAX_TEAM_SIZE}). Libere um espaço primeiro!`, true);
       return;
     }
     favorites = [pokemon, ...favorites];
-    setSearchStatus(`Pokébola vai! ${pokemon.name.toUpperCase()} entrou para sua equipe!`);
+    setSearchStatus(`${pokemon.name.toUpperCase()} entrou para sua equipe!`);
   }
   saveFavorites();
   renderFavorites();
@@ -658,6 +684,9 @@ function renderFavorites() {
     .join("");
 }
 
+// ==========================================================================
+// ARENA DE BATALHA VISUAL COM PODERES ELEMENTAIS
+// ==========================================================================
 function stopActiveBattle() {
   if (battleTimer) {
     clearInterval(battleTimer);
@@ -671,16 +700,29 @@ function toggleComparison(pokemon) {
     comparison = comparison.filter((item) => item.id !== pokemon.id);
   } else if (comparison.length < 2) {
     comparison = [...comparison, pokemon];
+    setSearchStatus(`${pokemon.name} selecionado como Lutador ${comparison.length}!`);
   } else {
     comparison = [comparison[1], pokemon];
+    setSearchStatus(`${pokemon.name} entrou na Arena!`);
   }
+  arenaTab = "field";
   renderComparison();
   renderDetail(pokemon, null);
 }
 
-// ==========================================================================
-// SISTEMA DE BATALHA POR TURNOS NA ARENA
-// ==========================================================================
+async function startQuickRandomDuel() {
+  stopActiveBattle();
+  const id1 = 1 + Math.floor(Math.random() * 151);
+  let id2 = 1 + Math.floor(Math.random() * 151);
+  if (id2 === id1) id2 = (id1 % 151) + 1;
+
+  const [p1, p2] = await Promise.all([getPokemon(id1), getPokemon(id2)]);
+  comparison = [p1, p2];
+  arenaTab = "field";
+  renderComparison();
+  if (selectedPokemon) renderDetail(selectedPokemon, null);
+}
+
 function getStatValue(pokemon, statName) {
   return pokemon.stats.find((s) => s.stat.name === statName)?.base_stat || 50;
 }
@@ -696,14 +738,14 @@ function getEffectiveness(attackerType, defenderTypes) {
 
 function buildFighter(pokemon) {
   const types = pokemon.types.map((t) => t.type.name);
-  const maxHp = getStatValue(pokemon, "hp") * 3 + 60;
+  const maxHp = getStatValue(pokemon, "hp") * 2 + 52;
   const atk = Math.max(getStatValue(pokemon, "attack"), getStatValue(pokemon, "special-attack"));
   const def = Math.max(getStatValue(pokemon, "defense"), getStatValue(pokemon, "special-defense"));
   const spd = getStatValue(pokemon, "speed");
 
   return {
     id: pokemon.id,
-    name: pokemon.name.toUpperCase(),
+    name: pokemon.name,
     types,
     maxHp,
     hp: maxHp,
@@ -713,144 +755,270 @@ function buildFighter(pokemon) {
   };
 }
 
-function startTurnBattle(first, second) {
-  stopActiveBattle();
+function spawnPowerEffect(attackerIdx, moveType, damage, isCrit, mult) {
+  const ground = document.querySelector(".battle-ground");
+  if (!ground) return;
 
-  const arenaBox = document.querySelector("#battle-arena-box");
-  const startBtn = document.querySelector('[data-action="start-battle"]');
-  if (!arenaBox) return;
+  const fx = TYPE_FX[moveType] || TYPE_FX.normal;
+  const fromSide = attackerIdx === 1 ? "from-left" : "from-right";
+  const targetSide = attackerIdx === 1 ? "on-right" : "on-left";
+
+  const projectile = document.createElement("span");
+  projectile.className = `power-projectile ${fromSide}`;
+  projectile.textContent = fx.icon;
+  projectile.style.setProperty("--fx-color", fx.color);
+  projectile.style.setProperty("--fx-glow", fx.glow);
+  ground.appendChild(projectile);
+
+  setTimeout(() => {
+    projectile.remove();
+
+    const impact = document.createElement("span");
+    impact.className = `power-impact ${targetSide}`;
+    impact.style.setProperty("--fx-color", fx.color);
+    ground.appendChild(impact);
+
+    const dmgBadge = document.createElement("span");
+    dmgBadge.className = `floating-damage ${targetSide}`;
+    dmgBadge.style.setProperty("--fx-color", fx.color);
+    const badgeTag = isCrit ? " CRÍTICO!" : mult > 1.1 ? " 2x!" : "";
+    dmgBadge.textContent = `-${damage} PS${badgeTag}`;
+    ground.appendChild(dmgBadge);
+
+    ground.classList.remove("is-shaking");
+    void ground.offsetWidth;
+    ground.classList.add("is-shaking");
+
+    setTimeout(() => {
+      impact.remove();
+      dmgBadge.remove();
+    }, 850);
+  }, 380);
+}
+
+function runVisualBattle(first, second) {
+  stopActiveBattle();
 
   const f1 = buildFighter(first);
   const f2 = buildFighter(second);
+
+  const hpText1 = document.querySelector("#hud-hp-text-1");
+  const hpText2 = document.querySelector("#hud-hp-text-2");
+  const hpFill1 = document.querySelector("#hud-hp-fill-1");
+  const hpFill2 = document.querySelector("#hud-hp-fill-2");
+  const sprite1 = document.querySelector("#fighter-sprite-1");
+  const sprite2 = document.querySelector("#fighter-sprite-2");
+  const dialogText = document.querySelector("#battle-dialog-text");
+  const fightBtn = document.querySelector('[data-action="start-battle"]');
+
+  if (!dialogText) return;
+
+  if (fightBtn) {
+    fightBtn.disabled = true;
+    fightBtn.textContent = "Lutando…";
+  }
+
+  function updateHud() {
+    const pct1 = Math.max(0, Math.round((f1.hp / f1.maxHp) * 100));
+    const pct2 = Math.max(0, Math.round((f2.hp / f2.maxHp) * 100));
+    const color = (p) => (p > 50 ? "#22c55e" : p > 20 ? "#f59e0b" : "#ef4444");
+
+    if (hpText1) hpText1.textContent = `${f1.hp}/${f1.maxHp}`;
+    if (hpText2) hpText2.textContent = `${f2.hp}/${f2.maxHp}`;
+    if (hpFill1) {
+      hpFill1.style.width = `${pct1}%`;
+      hpFill1.style.backgroundColor = color(pct1);
+    }
+    if (hpFill2) {
+      hpFill2.style.width = `${pct2}%`;
+      hpFill2.style.backgroundColor = color(pct2);
+    }
+  }
+
+  function triggerAnim(attackerIdx) {
+    const atkEl = attackerIdx === 1 ? sprite1 : sprite2;
+    const defEl = attackerIdx === 1 ? sprite2 : sprite1;
+    const atkClass = attackerIdx === 1 ? "is-attacking-left" : "is-attacking-right";
+
+    if (atkEl) {
+      atkEl.classList.remove(atkClass);
+      void atkEl.offsetWidth;
+      atkEl.classList.add(atkClass);
+    }
+    if (defEl) {
+      setTimeout(() => {
+        defEl.classList.remove("is-hit");
+        void defEl.offsetWidth;
+        defEl.classList.add("is-hit");
+      }, 360);
+    }
+  }
+
+  updateHud();
+  dialogText.textContent = `${f1.name.toUpperCase()} vs ${f2.name.toUpperCase()} · Começou!`;
+
   let turn = 1;
-  const logs = [];
+  battleTimer = setInterval(() => {
+    const order = f1.spd >= f2.spd ? [[f1, f2, 1], [f2, f1, 2]] : [[f2, f1, 2], [f1, f2, 1]];
+    const [attacker, defender, idx] = order[(turn - 1) % 2];
 
-  if (startBtn) {
-    startBtn.disabled = true;
-    startBtn.textContent = "⚔ Batalha em andamento…";
-  }
-
-  function updateArenaUI(winner = null) {
-    const p1Pct = Math.max(0, Math.round((f1.hp / f1.maxHp) * 100));
-    const p2Pct = Math.max(0, Math.round((f2.hp / f2.maxHp) * 100));
-
-    const barColor = (pct) => (pct > 50 ? "#22c55e" : pct > 20 ? "#f59e0b" : "#ef4444");
-
-    arenaBox.hidden = false;
-    arenaBox.innerHTML = `
-      <div style="background:var(--bg-surface-soft);border:1px solid var(--border-color);border-radius:14px;padding:0.9rem;display:flex;flex-direction:column;gap:0.75rem;">
-        <div>
-          <div style="display:flex;justify-content:space-between;font-size:0.82rem;font-weight:700;margin-bottom:0.25rem;">
-            <span>${escapeHTML(f1.name)}</span>
-            <span>${Math.max(0, f1.hp)} / ${f1.maxHp} HP</span>
-          </div>
-          <div class="stat-track"><span class="stat-fill" style="display:block;width:${p1Pct}%;background:${barColor(p1Pct)};"></span></div>
-        </div>
-
-        <div>
-          <div style="display:flex;justify-content:space-between;font-size:0.82rem;font-weight:700;margin-bottom:0.25rem;">
-            <span>${escapeHTML(f2.name)}</span>
-            <span>${Math.max(0, f2.hp)} / ${f2.maxHp} HP</span>
-          </div>
-          <div class="stat-track"><span class="stat-fill" style="display:block;width:${p2Pct}%;background:${barColor(p2Pct)};"></span></div>
-        </div>
-
-        <div style="max-height:165px;overflow-y:auto;background:#fff;border:1px solid var(--border-color);border-radius:10px;padding:0.65rem;font-size:0.8rem;display:flex;flex-direction:column;gap:0.4rem;">
-          ${logs.map((entry) => `<div>${entry}</div>`).join("")}
-        </div>
-
-        ${
-          winner
-            ? `<div style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:0.65rem 0.8rem;border-radius:10px;font-weight:700;font-size:0.86rem;text-align:center;">
-                🏆 ${escapeHTML(winner.name)} venceu a batalha no turno ${turn}!
-              </div>`
-            : ""
-        }
-      </div>`;
-  }
-
-  function executeAttack(attacker, defender) {
     const chosenType = attacker.types[Math.floor(Math.random() * attacker.types.length)] || "normal";
     const moves = TYPE_MOVES[chosenType] || TYPE_MOVES.normal;
     const moveName = moves[Math.floor(Math.random() * moves.length)];
+    const mult = getEffectiveness(chosenType, defender.types);
+    const crit = Math.random() < 0.15;
 
-    const effectiveness = getEffectiveness(chosenType, defender.types);
-    const isCrit = Math.random() < 0.15;
-    const variance = 0.88 + Math.random() * 0.24;
-
-    const rawDamage = ((attacker.atk / Math.max(35, defender.def)) * 34 + 14) * effectiveness * (isCrit ? 1.4 : 1) * variance;
-    const damage = Math.max(8, Math.round(rawDamage));
-    defender.hp = Math.max(0, defender.hp - damage);
-
-    let tag = "";
-    if (effectiveness > 1.1) tag += ' <strong style="color:#16a34a;">(Super efetivo!)</strong>';
-    else if (effectiveness < 0.9) tag += ' <span style="color:#6b7280;">(Pouco efetivo)</span>';
-    if (isCrit) tag += ' <strong style="color:#dc2626;">⚡ Crítico!</strong>';
-
-    logs.unshift(
-      `<strong>[T${turn}]</strong> ${escapeHTML(attacker.name)} usou <em>${escapeHTML(moveName)}</em> e causou <strong>${damage} de dano</strong>!${tag}`
+    const damage = Math.max(
+      10,
+      Math.round(((attacker.atk / Math.max(35, defender.def)) * 32 + 14) * mult * (crit ? 1.35 : 1))
     );
-  }
 
-  logs.unshift(`🔥 <strong>${escapeHTML(f1.name)}</strong> vs <strong>${escapeHTML(f2.name)}</strong> — A batalha começou!`);
-  updateArenaUI();
+    triggerAnim(idx);
+    spawnPowerEffect(idx, chosenType, damage, crit, mult);
 
-  battleTimer = setInterval(() => {
-    const [firstAttacker, secondAttacker] = f1.spd >= f2.spd ? [f1, f2] : [f2, f1];
+    const extra = mult > 1.1 ? " Super efetivo!" : crit ? " Golpe crítico!" : "";
+    dialogText.textContent = `${attacker.name} lançou ${moveName}!${extra}`;
 
-    executeAttack(firstAttacker, secondAttacker);
-    if (secondAttacker.hp <= 0) {
-      stopActiveBattle();
-      updateArenaUI(firstAttacker);
-      if (startBtn) {
-        startBtn.disabled = false;
-        startBtn.textContent = "🔄 Batalhar Novamente";
+    setTimeout(() => {
+      defender.hp = Math.max(0, defender.hp - damage);
+      updateHud();
+
+      if (defender.hp <= 0) {
+        stopActiveBattle();
+        dialogText.textContent = `🏆 ${attacker.name.toUpperCase()} venceu a batalha!`;
+        if (fightBtn) {
+          fightBtn.disabled = false;
+          fightBtn.textContent = "↻ Revanche";
+        }
       }
-      return;
-    }
+    }, 400);
 
-    executeAttack(secondAttacker, firstAttacker);
-    if (firstAttacker.hp <= 0) {
-      stopActiveBattle();
-      updateArenaUI(secondAttacker);
-      if (startBtn) {
-        startBtn.disabled = false;
-        startBtn.textContent = "🔄 Batalhar Novamente";
-      }
-      return;
-    }
-
-    updateArenaUI();
     turn += 1;
-  }, 1100);
+  }, 1350);
 }
 
 function renderComparison() {
+  const headerControls = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.65rem;">
+      <span style="font-size:0.75rem;font-weight:700;color:var(--text-muted);">MODO ARENA</span>
+      <div class="arena-header-actions">
+        <button type="button" class="btn-quick-duel" data-action="quick-duel">⚡ Duelo Rápido</button>
+        ${comparison.length > 0 ? `<button type="button" class="btn-clear-arena" data-action="clear-arena">Limpar</button>` : ""}
+      </div>
+    </div>`;
+
   if (comparison.length === 0) {
-    elements.comparison.innerHTML = '<p class="empty-message">Adicione 2 Pokémon pelo scanner para iniciar a batalha.</p>';
+    elements.comparison.innerHTML = `
+      ${headerControls}
+      <p class="empty-message">Escolha 2 Pokémon nas cartas ou clique em <strong>⚡ Duelo Rápido</strong>.</p>`;
     return;
   }
 
-  const slots = comparison
-    .map((pokemon) => {
-      const image = pokemonImage(pokemon, false);
-      return `
-        <div class="compare-slot">
-          ${image ? `<img class="compare-slot-image" src="${escapeHTML(image)}" alt="" loading="lazy">` : ""}
-          <span class="compare-slot-name">
-            ${escapeHTML(pokemon.name)}
-            <span class="compare-slot-number">${formatId(pokemon.id)} · ${pokemon.types.map((t) => typeLabel(t.type.name)).join(" / ")}</span>
-          </span>
-          <button class="compare-remove" type="button" data-remove-compare="${pokemon.id}" aria-label="Remover ${escapeHTML(pokemon.name)}">×</button>
-        </div>`;
-    })
-    .join("");
+  const p1 = comparison[0];
+  const p2 = comparison[1];
 
-  let battleSection = "";
-  if (comparison.length === 2) {
-    const [first, second] = comparison;
-    const firstStats = new Map(first.stats.map(({ stat, base_stat: value }) => [stat.name, value]));
-    const secondStats = new Map(second.stats.map(({ stat, base_stat: value }) => [stat.name, value]));
+  const fightersBar = `
+    <div class="arena-fighters-bar">
+      <div class="fighter-pill">
+        <div class="fighter-pill-info">
+          <img src="${escapeHTML(pokemonImage(p1, false))}" alt="">
+          <div>
+            <span class="fighter-pill-label">Lutador 1</span>
+            <span class="fighter-pill-name">${escapeHTML(p1.name)}</span>
+          </div>
+        </div>
+        <button class="compare-remove" type="button" data-remove-compare="${p1.id}" title="Remover">×</button>
+      </div>
+
+      <button type="button" class="btn-swap-fighters" data-action="swap-fighters" title="Inverter lados" ${!p2 ? "disabled" : ""}>⇄</button>
+
+      ${
+        p2
+          ? `<div class="fighter-pill">
+              <div class="fighter-pill-info">
+                <img src="${escapeHTML(pokemonImage(p2, false))}" alt="">
+                <div>
+                  <span class="fighter-pill-label">Lutador 2</span>
+                  <span class="fighter-pill-name">${escapeHTML(p2.name)}</span>
+                </div>
+              </div>
+              <button class="compare-remove" type="button" data-remove-compare="${p2.id}" title="Remover">×</button>
+            </div>`
+          : `<div class="fighter-pill" style="justify-content:center;border-style:dashed;color:var(--text-muted);font-size:0.78rem;">
+              + Lutador 2
+            </div>`
+      }
+    </div>`;
+
+  if (!p2) {
+    elements.comparison.innerHTML = `
+      ${headerControls}
+      ${fightersBar}
+      <p class="empty-message">Selecione mais 1 Pokémon para liberar o campo de batalha!</p>`;
+    return;
+  }
+
+  const f1 = buildFighter(p1);
+  const f2 = buildFighter(p2);
+
+  const tabsHtml = `
+    <div class="arena-tabs">
+      <button type="button" class="arena-tab${arenaTab === "field" ? " is-active" : ""}" data-arena-tab="field">⚔ Campo de Batalha</button>
+      <button type="button" class="arena-tab${arenaTab === "stats" ? " is-active" : ""}" data-arena-tab="stats">📊 Radar & Status</button>
+    </div>`;
+
+  let bodyHtml = "";
+  if (arenaTab === "field") {
+    bodyHtml = `
+      <div class="battle-stage-card">
+        <div class="battle-hud-row">
+          <div class="hud-box">
+            <div class="hud-top">
+              <span class="hud-name">${escapeHTML(p1.name)}</span>
+              <span class="hud-level">NV.50</span>
+            </div>
+            <div class="hud-hp-bar"><div id="hud-hp-fill-1" class="hud-hp-fill" style="width:100%;"></div></div>
+            <div class="hud-bottom">
+              <span>${p1.types.map((t) => typeLabel(t.type.name)).join("/")}</span>
+              <span id="hud-hp-text-1">${f1.maxHp}/${f1.maxHp}</span>
+            </div>
+          </div>
+
+          <div class="hud-box">
+            <div class="hud-top">
+              <span class="hud-name">${escapeHTML(p2.name)}</span>
+              <span class="hud-level">NV.50</span>
+            </div>
+            <div class="hud-hp-bar"><div id="hud-hp-fill-2" class="hud-hp-fill" style="width:100%;"></div></div>
+            <div class="hud-bottom">
+              <span>${p2.types.map((t) => typeLabel(t.type.name)).join("/")}</span>
+              <span id="hud-hp-text-2">${f2.maxHp}/${f2.maxHp}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="battle-ground">
+          <div class="fighter-spot">
+            <img id="fighter-sprite-1" class="fighter-sprite is-left" src="${escapeHTML(pokemonImage(p1, false))}" alt="${escapeHTML(p1.name)}">
+            <span class="fighter-platform"></span>
+          </div>
+
+          <span class="vs-medallion">VS</span>
+
+          <div class="fighter-spot">
+            <img id="fighter-sprite-2" class="fighter-sprite" src="${escapeHTML(pokemonImage(p2, false))}" alt="${escapeHTML(p2.name)}">
+            <span class="fighter-platform"></span>
+          </div>
+        </div>
+
+        <div class="battle-dialog-box">
+          <span id="battle-dialog-text" class="battle-dialog-text">${escapeHTML(p1.name)} vs ${escapeHTML(p2.name)} · Pronto para lutar!</span>
+          <button type="button" class="btn-fight-trigger" data-action="start-battle">▶ Lutar</button>
+        </div>
+      </div>`;
+  } else {
+    const firstStats = new Map(p1.stats.map(({ stat, base_stat: value }) => [stat.name, value]));
+    const secondStats = new Map(p2.stats.map(({ stat, base_stat: value }) => [stat.name, value]));
 
     const rows = Object.entries(STAT_NAMES)
       .map(([key, label]) => {
@@ -865,26 +1033,22 @@ function renderComparison() {
       })
       .join("");
 
-    battleSection = `
+    bodyHtml = `
       <div class="comparison-table-wrap">
         <table class="comparison-table">
           <thead>
             <tr>
               <th>Atributo</th>
-              <th>${escapeHTML(first.name)}</th>
-              <th>${escapeHTML(second.name)}</th>
+              <th>${escapeHTML(p1.name)}</th>
+              <th>${escapeHTML(p2.name)}</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
-      </div>
-      <button class="button button-primary" type="button" data-action="start-battle" style="width:100%;margin-top:0.35rem;">
-        ⚔ Iniciar Batalha por Turnos
-      </button>
-      <div id="battle-arena-box" hidden></div>`;
+      </div>`;
   }
 
-  elements.comparison.innerHTML = `${slots}${battleSection}`;
+  elements.comparison.innerHTML = `${headerControls}${fightersBar}${tabsHtml}${bodyHtml}`;
 }
 
 function restoreCatalog() {
@@ -1003,18 +1167,47 @@ elements.comparison.addEventListener("click", (event) => {
   const removeBtn = event.target.closest("[data-remove-compare]");
   if (removeBtn) {
     stopActiveBattle();
-    comparison = comparison.filter((pokemon) => pokemon.id !== Number(removeBtn.dataset.removeCompare));
+    comparison = comparison.filter((p) => p.id !== Number(removeBtn.dataset.removeCompare));
     renderComparison();
     if (selectedPokemon) renderDetail(selectedPokemon, null);
     return;
   }
 
-  const battleBtn = event.target.closest('[data-action="start-battle"]');
-  if (battleBtn && comparison.length === 2) {
-    startTurnBattle(comparison[0], comparison[1]);
+  const tabBtn = event.target.closest("[data-arena-tab]");
+  if (tabBtn) {
+    stopActiveBattle();
+    arenaTab = tabBtn.dataset.arenaTab;
+    renderComparison();
+    return;
+  }
+
+  const actionBtn = event.target.closest("[data-action]");
+  if (!actionBtn) return;
+
+  const action = actionBtn.dataset.action;
+  if (action === "quick-duel") {
+    startQuickRandomDuel();
+  } else if (action === "clear-arena") {
+    stopActiveBattle();
+    comparison = [];
+    renderComparison();
+    if (selectedPokemon) renderDetail(selectedPokemon, null);
+  } else if (action === "swap-fighters" && comparison.length === 2) {
+    stopActiveBattle();
+    comparison = [comparison[1], comparison[0]];
+    renderComparison();
+  } else if (action === "start-battle" && comparison.length === 2) {
+    runVisualBattle(comparison[0], comparison[1]);
   }
 });
 
+// Inicia com Pikachu vs Bulbasaur prontos na Arena
+Promise.all([getPokemon(25), getPokemon(1)])
+  .then(([pikachu, bulbasaur]) => {
+    comparison = [pikachu, bulbasaur];
+    renderComparison();
+  })
+  .catch(() => renderComparison());
+
 renderFavorites();
-renderComparison();
 loadCatalog();

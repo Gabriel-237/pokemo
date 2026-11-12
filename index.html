@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#f2f5fb">
     <meta
       name="description"
-      content="Pokédex Explorer Holográfica — explore espécies, ouça gritos oficiais, ative formas Shiny e simule batalhas."
+      content="Pokédex Lab — explore espécies, inspecione fichas biométricas, ative formas Shiny e lute na Arena com poderes elementais."
     >
-    <title>Pokédex Explorer — Laboratório Holográfico</title>
+    <title>Pokédex Lab — Arena & Telemetria</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -20,13 +20,13 @@
   </head>
   <body>
     <header class="site-header">
-      <a class="brand" href="#inicio" aria-label="Pokédex Explorer, início">
+      <a class="brand" href="#inicio" aria-label="Pokédex Lab, início">
         <span class="brand-mark" aria-hidden="true">◉</span>
         <span>POKÉDEX <span class="brand-divider">/</span> LAB</span>
       </a>
       <nav class="site-nav" aria-label="Navegação principal">
         <a href="#catalogo">Catálogo</a>
-        <a href="#colecao">Minha Equipe</a>
+        <a href="#colecao">Arena & Equipe</a>
         <a href="#sobre">Sistema</a>
       </nav>
     </header>
@@ -35,9 +35,9 @@
       <section class="hero section-wrap" aria-labelledby="hero-title">
         <div class="hero-copy">
           <p class="eyebrow"><span class="live-dot"></span> CONEXÃO POKÉAPI V2 ATIVA</p>
-          <h1 id="hero-title">Explore, analise e<br>duele com sua equipe.</h1>
+          <h1 id="hero-title">Explore, analise e<br>duele na Arena.</h1>
           <p class="hero-description">
-            Inspecione cartas holográficas em 3D, ouça o som original de cada espécie, descubra formas Shiny e simule batalhas lado a lado.
+            Inspecione cartas holográficas em 3D, descubra formas Shiny, acompanhe evoluções e coloque dois Pokémon frente a frente no Campo de Batalha com poderes elementais animados.
           </p>
         </div>
 
@@ -48,7 +48,7 @@
               id="pokemon-input"
               name="pokemon"
               type="search"
-              placeholder="Ex.: Gengar, Lucario ou 150"
+              placeholder="Ex.: Pikachu, Bulbasaur ou 150"
               autocomplete="off"
               minlength="1"
               maxlength="40"
@@ -59,11 +59,11 @@
           <div class="search-extras">
             <p class="field-hint">
               Sugestões:
-              <button type="button" class="text-button" data-quick-search="charizard">Charizard</button>,
-              <button type="button" class="text-button" data-quick-search="gengar">Gengar</button>,
-              <button type="button" class="text-button" data-quick-search="eevee">Eevee</button>
+              <button type="button" class="text-button" data-quick-search="pikachu">Pikachu</button>,
+              <button type="button" class="text-button" data-quick-search="bulbasaur">Bulbasaur</button>,
+              <button type="button" class="text-button" data-quick-search="charizard">Charizard</button>
             </p>
-            <button class="button button-quiet" id="random-button" type="button">🎲 Surpresa</button>
+            <button class="button button-quiet" id="random-button" type="button">🎲 Aleatório</button>
           </div>
           <p class="search-status" id="search-status" role="status" aria-live="polite"></p>
         </form>
@@ -75,7 +75,7 @@
             <div>
               <p class="eyebrow">ARQUIVO DE ESPÉCIES</p>
               <h2 id="catalog-title">Cartas Colecionáveis</h2>
-              <p class="section-description" id="catalog-caption">Passe o cursor sobre as cartas para ver o brilho holográfico.</p>
+              <p class="section-description" id="catalog-caption">Selecione uma carta para inspecionar ou enviar para a Arena.</p>
             </div>
             <span class="heading-icon" aria-hidden="true">❖</span>
           </div>
@@ -111,12 +111,23 @@
           </nav>
         </section>
 
-        <aside class="sidebar" id="colecao" aria-label="Detalhes, equipe e simulador">
+        <aside class="sidebar" id="colecao" aria-label="Arena, telemetria e equipe">
+          <section class="panel compare-panel" aria-labelledby="compare-title">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">SIMULADOR DE COMBATE</p>
+                <h2 id="compare-title">Arena de Batalha</h2>
+              </div>
+              <span class="heading-icon" aria-hidden="true">⚔</span>
+            </div>
+            <div class="comparison-result" id="comparison-result" aria-live="polite"></div>
+          </section>
+
           <section class="panel detail-panel" aria-labelledby="detail-title">
             <div class="panel-heading">
               <div>
-                <p class="eyebrow">ANÁLISE BIOMÉTRICA</p>
-                <h2 id="detail-title">Scanner da Espécie</h2>
+                <p class="eyebrow">TELEMETRIA DA ESPÉCIE</p>
+                <h2 id="detail-title">Ficha Biométrica</h2>
               </div>
               <span class="heading-icon" aria-hidden="true">✦</span>
             </div>
@@ -124,7 +135,7 @@
               <div class="detail-empty">
                 <span class="detail-empty-icon" aria-hidden="true">◈</span>
                 <strong>Nenhum espécime selecionado</strong>
-                <p>Clique em qualquer carta para abrir o scanner, ouvir seu grito e testar a forma Shiny.</p>
+                <p>Clique em qualquer carta para abrir a ficha biométrica ou enviar para a Arena.</p>
               </div>
             </div>
           </section>
@@ -141,35 +152,21 @@
               <li class="empty-message">Capture até 6 Pokémon favoritos para montar seu time.</li>
             </ul>
           </section>
-
-          <section class="panel compare-panel" aria-labelledby="compare-title">
-            <div class="panel-heading">
-              <div>
-                <p class="eyebrow">ARENA DE SIMULAÇÃO</p>
-                <h2 id="compare-title">Comparar & Duelar</h2>
-              </div>
-              <span class="heading-icon" aria-hidden="true">⚔</span>
-            </div>
-            <p class="section-description">Selecione dois Pokémon para comparar atributos e simular um duelo.</p>
-            <div class="comparison-result" id="comparison-result" aria-live="polite">
-              <p class="empty-message">Adicione 2 Pokémon pelo scanner para iniciar a análise.</p>
-            </div>
-          </section>
         </aside>
       </div>
 
       <section class="about-section section-wrap" id="sobre" aria-labelledby="about-title">
         <div>
           <p class="eyebrow">ARQUITETURA DO LABORATÓRIO</p>
-          <h2 id="about-title">Dados reais, experiência interativa.</h2>
-          <p>Cada carta consome endpoints em tempo real de espécies, cadeias evolutivas e áudio oficial da PokéAPI.</p>
+          <h2 id="about-title">Dados reais, arena interativa.</h2>
+          <p>Cada carta consome endpoints em tempo real de espécies, atributos e cadeias evolutivas da PokéAPI v2.</p>
         </div>
         <div class="api-flow" aria-label="Etapas de exploração">
           <div class="flow-step"><span>01</span><strong>Escaneie</strong><small>Cartas 3D & filtros</small></div>
           <span class="flow-arrow" aria-hidden="true">→</span>
-          <div class="flow-step"><span>02</span><strong>Inspecione</strong><small>Áudio & modo Shiny</small></div>
+          <div class="flow-step"><span>02</span><strong>Inspecione</strong><small>Ficha & evoluções</small></div>
           <span class="flow-arrow" aria-hidden="true">→</span>
-          <div class="flow-step"><span>03</span><strong>Simule</strong><small>Duelo de atributos</small></div>
+          <div class="flow-step"><span>03</span><strong>Batalhe</strong><small>Poderes elementais</small></div>
         </div>
       </section>
     </main>
