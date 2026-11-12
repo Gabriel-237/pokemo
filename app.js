@@ -33,27 +33,6 @@ const STAT_NAMES = {
   speed: "Velocidade",
 };
 
-const TYPE_COLORS = {
-  normal: "#e7e9ef",
-  fire: "#ffe3d6",
-  water: "#d8ecff",
-  grass: "#dcf5dc",
-  electric: "#fff3c4",
-  ice: "#d6f6fc",
-  fighting: "#ffd9d9",
-  poison: "#f2d9ff",
-  ground: "#f7e5c6",
-  flying: "#e2e6ff",
-  psychic: "#ffd9eb",
-  bug: "#ebf7cf",
-  rock: "#ebe6df",
-  ghost: "#e1e0ff",
-  dragon: "#dce0ff",
-  dark: "#dfe3eb",
-  steel: "#e3e9f0",
-  fairy: "#ffe0f0",
-};
-
 const TYPE_ADVANTAGES = {
   fire: ["grass", "ice", "bug", "steel"],
   water: ["fire", "ground", "rock"],
@@ -259,7 +238,6 @@ function showCatalogMessage(message, isError = false) {
 
 function cardMarkup(pokemon) {
   const types = pokemon.types.map(({ type }) => type.name);
-  const firstType = types[0] || "normal";
   const image = pokemonImage(pokemon, false);
   const totalStats = pokemon.stats.reduce((acc, s) => acc + s.base_stat, 0);
 
@@ -269,10 +247,9 @@ function cardMarkup(pokemon) {
       type="button"
       data-pokemon-id="${pokemon.id}"
       aria-label="Inspecionar ${escapeHTML(pokemon.name)}"
-      style="--card-tint:${TYPE_COLORS[firstType] || "#e6e9ff"}"
     >
       <div style="width:100%;display:flex;justify-content:space-between;align-items:center;">
-        <span class="card-number" style="background:rgba(255,255,255,0.85);">⚡ ${totalStats}</span>
+        <span class="card-number">⚡ ${totalStats}</span>
         <span class="card-number">${formatId(pokemon.id)}</span>
       </div>
       <span class="card-image-wrap">
@@ -563,7 +540,6 @@ function renderDetail(pokemon, description) {
   const flavorText = description || speciesDescriptions.get(pokemon.id) || "";
   const image = pokemonImage(pokemon, isShinyMode);
   const typeNames = pokemon.types.map(({ type }) => type.name);
-  const firstType = typeNames[0] || "normal";
   const abilities = pokemon.abilities.map(({ ability, is_hidden }) =>
     `${ability.name.replaceAll("-", " ")}${is_hidden ? " ★" : ""}`
   );
@@ -588,7 +564,7 @@ function renderDetail(pokemon, description) {
   const total = pokemon.stats.reduce((sum, item) => sum + item.base_stat, 0);
 
   elements.detail.innerHTML = `
-    <div class="detail-hero" style="background: linear-gradient(180deg, ${TYPE_COLORS[firstType] || "#f1f5f9"} 0%, #ffffff 100%);">
+    <div class="detail-hero">
       <span class="detail-number">${formatId(pokemon.id)}</span>
       <div style="position:absolute;top:0.75rem;left:0.85rem;">
         <button
@@ -596,7 +572,7 @@ function renderDetail(pokemon, description) {
           class="button-quiet"
           data-action="toggle-shiny"
           title="Alternar forma Shiny"
-          style="padding:0.25rem 0.6rem;border-radius:999px;font-size:0.75rem;${isShinyMode ? "background:#fef3c7;border-color:#f59e0b;color:#92400e;" : ""}"
+          style="padding:0.25rem 0.6rem;border-radius:999px;font-size:0.75rem;${isShinyMode ? "background:rgba(34,197,94,0.2);border-color:#22c55e;color:#4ade80;" : ""}"
         >
           ${isShinyMode ? "✨ Shiny ON" : "✧ Shiny"}
         </button>
@@ -685,7 +661,7 @@ function renderFavorites() {
 }
 
 // ==========================================================================
-// ARENA DE BATALHA VISUAL COM PODERES ELEMENTAIS
+// ARENA DE BATALHA VISUAL COM PESQUISA DIRETA & PODERES ELEMENTAIS
 // ==========================================================================
 function stopActiveBattle() {
   if (battleTimer) {
@@ -694,7 +670,7 @@ function stopActiveBattle() {
   }
 }
 
-function toggleComparison(pokemon) {
+function toggleComparison(pokemon, feedbackMsg = "") {
   stopActiveBattle();
   if (comparison.some((item) => item.id === pokemon.id)) {
     comparison = comparison.filter((item) => item.id !== pokemon.id);
@@ -706,8 +682,57 @@ function toggleComparison(pokemon) {
     setSearchStatus(`${pokemon.name} entrou na Arena!`);
   }
   arenaTab = "field";
-  renderComparison();
-  renderDetail(pokemon, null);
+  renderComparison(feedbackMsg);
+  if (selectedPokemon) renderDetail(selectedPokemon, null);
+}
+
+async function addFighterBySearch(rawQuery) {
+  const query = rawQuery.trim().toLowerCase();
+  const feedbackEl = document.querySelector("#arena-search-feedback");
+  const submitBtn = document.querySelector("#arena-search-btn");
+  const inputEl = document.querySelector("#arena-search-input");
+
+  if (!query) {
+    if (feedbackEl) {
+      feedbackEl.textContent = "Digite o nome ou número do Pokémon.";
+      feedbackEl.classList.add("is-error");
+    }
+    inputEl?.focus();
+    return;
+  }
+
+  if (!/^[a-z0-9-]+$/.test(query)) {
+    if (feedbackEl) {
+      feedbackEl.textContent = "Use apenas letras, números ou hífen.";
+      feedbackEl.classList.add("is-error");
+    }
+    return;
+  }
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Buscando…";
+  }
+
+  try {
+    const pokemon = await getPokemon(query);
+    if (comparison.some((p) => p.id === pokemon.id)) {
+      renderComparison(`⚠️ ${pokemon.name.toUpperCase()} já está na Arena!`, true);
+      return;
+    }
+
+    stopActiveBattle();
+    if (comparison.length < 2) {
+      comparison = [...comparison, pokemon];
+    } else {
+      comparison = [comparison[1], pokemon];
+    }
+    arenaTab = "field";
+    renderComparison(`✓ ${pokemon.name.toUpperCase()} entrou na Arena!`);
+    if (selectedPokemon) renderDetail(selectedPokemon, null);
+  } catch {
+    renderComparison("Pokémon não encontrado. Verifique o nome ou número.", true);
+  }
 }
 
 async function startQuickRandomDuel() {
@@ -897,7 +922,7 @@ function runVisualBattle(first, second) {
   }, 1350);
 }
 
-function renderComparison() {
+function renderComparison(feedbackMessage = "", isFeedbackError = false) {
   const headerControls = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.65rem;">
       <span style="font-size:0.75rem;font-weight:700;color:var(--text-muted);">MODO ARENA</span>
@@ -905,12 +930,23 @@ function renderComparison() {
         <button type="button" class="btn-quick-duel" data-action="quick-duel">⚡ Duelo Rápido</button>
         ${comparison.length > 0 ? `<button type="button" class="btn-clear-arena" data-action="clear-arena">Limpar</button>` : ""}
       </div>
-    </div>`;
+    </div>
+    <form class="arena-search-form" id="arena-search-form">
+      <input
+        id="arena-search-input"
+        class="arena-search-input"
+        type="search"
+        placeholder="Pesquisar lutador (ex.: Mewtwo, 6)…"
+        autocomplete="off"
+      >
+      <button type="submit" id="arena-search-btn" class="btn-arena-add">+ Lutador</button>
+    </form>
+    <p id="arena-search-feedback" class="arena-search-feedback${isFeedbackError ? " is-error" : ""}">${escapeHTML(feedbackMessage)}</p>`;
 
   if (comparison.length === 0) {
     elements.comparison.innerHTML = `
       ${headerControls}
-      <p class="empty-message">Escolha 2 Pokémon nas cartas ou clique em <strong>⚡ Duelo Rápido</strong>.</p>`;
+      <p class="empty-message">Pesquise 2 Pokémon acima, escolha nas cartas ou clique em <strong>⚡ Duelo Rápido</strong>.</p>`;
     return;
   }
 
@@ -954,7 +990,7 @@ function renderComparison() {
     elements.comparison.innerHTML = `
       ${headerControls}
       ${fightersBar}
-      <p class="empty-message">Selecione mais 1 Pokémon para liberar o campo de batalha!</p>`;
+      <p class="empty-message">Pesquise ou selecione mais 1 Pokémon para liberar o campo de batalha!</p>`;
     return;
   }
 
@@ -1027,8 +1063,8 @@ function renderComparison() {
         return `
           <tr>
             <th>${escapeHTML(label)}</th>
-            <td style="${v1 > v2 ? "font-weight:800;color:#16a34a;" : ""}">${v1}</td>
-            <td style="${v2 > v1 ? "font-weight:800;color:#16a34a;" : ""}">${v2}</td>
+            <td style="${v1 > v2 ? "font-weight:800;color:#4ade80;" : ""}">${v1}</td>
+            <td style="${v2 > v1 ? "font-weight:800;color:#4ade80;" : ""}">${v2}</td>
           </tr>`;
       })
       .join("");
@@ -1163,6 +1199,14 @@ elements.favoritesList.addEventListener("click", async (event) => {
   if (pokemon) await selectPokemon(pokemon);
 });
 
+elements.comparison.addEventListener("submit", (event) => {
+  if (event.target.id === "arena-search-form") {
+    event.preventDefault();
+    const input = event.target.querySelector("#arena-search-input");
+    if (input) addFighterBySearch(input.value);
+  }
+});
+
 elements.comparison.addEventListener("click", (event) => {
   const removeBtn = event.target.closest("[data-remove-compare]");
   if (removeBtn) {
@@ -1201,13 +1245,6 @@ elements.comparison.addEventListener("click", (event) => {
   }
 });
 
-// Inicia com Pikachu vs Bulbasaur prontos na Arena
-Promise.all([getPokemon(25), getPokemon(1)])
-  .then(([pikachu, bulbasaur]) => {
-    comparison = [pikachu, bulbasaur];
-    renderComparison();
-  })
-  .catch(() => renderComparison());
-
+renderComparison();
 renderFavorites();
 loadCatalog();
